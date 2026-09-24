@@ -4,7 +4,7 @@ InternOrbit is a full-stack internship portal built to simplify the internship h
 
 This project was developed to gain practical experience in building a complete MERN stack application with authentication, role-based access, REST APIs, and real-world application workflows.
 
----
+\---
 
 ## Features
 
@@ -31,9 +31,8 @@ This project was developed to gain practical experience in building a complete M
 * Protected routes
 * RESTful API architecture
 * Responsive user interface
-* AI chatbot for answering common queries
 
----
+\---
 
 ## Tech Stack
 
@@ -61,7 +60,7 @@ This project was developed to gain practical experience in building a complete M
 * GitHub
 * VS Code
 
----
+\---
 
 ## Project Structure
 
@@ -72,7 +71,7 @@ InternOrbit
 └── README.md
 ```
 
----
+\---
 
 ## Getting Started
 
@@ -84,7 +83,7 @@ git clone https://github.com/jain-akshat-05/InternOrbit.git
 
 Install dependencies.
 
-Backend:
+**Backend:**
 
 ```bash
 cd backend
@@ -92,7 +91,7 @@ npm install
 npm start
 ```
 
-Frontend:
+**Frontend:**
 
 ```bash
 cd frontend
@@ -100,13 +99,13 @@ npm install
 npm run dev
 ```
 
----
+\---
 
 ## What I Learned
 
-Building this project helped me understand how a complete MERN application works—from designing APIs and implementing authentication to connecting the frontend with the backend. It also gave me experience in managing user roles, handling application workflows, and integrating an AI chatbot into a web application.
+Building this project helped me understand how a complete MERN application works—from designing APIs and implementing authentication to connecting the frontend with the backend. It also gave me practical experience in managing user roles, handling application workflows, and connecting different parts of a full-stack web application.
 
----
+\---
 
 ## Future Improvements
 
@@ -120,10 +119,11 @@ Some features I would like to add in the future are:
 * Resume builder
 * AI interview preparation
 
----
+\---
 
 ## Author
 
 **Akshat Jain**
 
 GitHub: https://github.com/jain-akshat-05
+
