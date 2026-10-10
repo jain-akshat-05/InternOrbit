@@ -3,11 +3,15 @@ import api from "../api/axios";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/admin/stats").then(({ data }) => setStats(data));
+    api.get("/admin/stats")
+      .then(({ data }) => setStats(data))
+      .catch((err) => setError(err.response?.data?.message || "Failed to load analytics."));
   }, []);
 
+  if (error) return <div className="page"><p className="error">{error}</p></div>;
   if (!stats) return <div className="page">Loading analytics...</div>;
 
   return (

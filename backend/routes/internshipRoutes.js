@@ -1,6 +1,7 @@
 const express = require("express");
 const Internship = require("../models/Internship");
 const { protect, authorize } = require("../middleware/auth");
+const { isValidObjectId, sendApiError } = require("../utils/apiErrors");
 
 const router = express.Router();
 
@@ -8,33 +9,58 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const { search, location } = req.query;
+    if (
+      (search !== undefined && (typeof search !== "string" || search.length > 100)) ||
+      (location !== undefined && (typeof location !== "string" || location.length > 100))
+    ) {
+      return res.status(400).json({ message: "Search and location must be 100 characters or fewer" });
+    }
     const filter = { isActive: true };
     if (search) {
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { company: { $regex: search, $options: "i" } },
-        { skillsRequired: { $regex: search, $options: "i" } },
+        { title: { $regex: escapedSearch, $options: "i" } },
+        { company: { $regex: escapedSearch, $options: "i" } },
+        { skillsRequired: { $regex: escapedSearch, $options: "i" } },
       ];
     }
-    if (location) filter.location = { $regex: location, $options: "i" };
+    if (location) {
+      const escapedLocation = location.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.location = { $regex: escapedLocation, $options: "i" };
+    }
 
     const internships = await Internship.find(filter)
       .populate("postedBy", "name company")
       .sort({ createdAt: -1 });
     res.json(internships);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
+  }
+});
+
+// @route GET /api/internships/recruiter/mine  (recruiter's own postings)
+router.get("/recruiter/mine", protect, authorize("recruiter", "admin"), async (req, res) => {
+  try {
+    const internships = await Internship.find({ postedBy: req.user._id }).sort({ createdAt: -1 });
+    res.json(internships);
+  } catch (err) {
+    return sendApiError(res, err);
   }
 });
 
 // @route GET /api/internships/:id
 router.get("/:id", async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid internship ID" });
+    }
     const internship = await Internship.findById(req.params.id).populate("postedBy", "name company");
-    if (!internship) return res.status(404).json({ message: "Internship not found" });
+    if (!internship || !internship.isActive) {
+      return res.status(404).json({ message: "Internship not found" });
+    }
     res.json(internship);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 
@@ -54,48 +80,61 @@ router.post("/", protect, authorize("recruiter", "admin"), async (req, res) => {
     });
     res.status(201).json(internship);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 
 // @route PUT /api/internships/:id  (owner recruiter or admin only)
 router.put("/:id", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid internship ID" });
+    }
     const internship = await Internship.findById(req.params.id);
     if (!internship) return res.status(404).json({ message: "Internship not found" });
     if (internship.postedBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to edit this internship" });
     }
-    Object.assign(internship, req.body);
-    await internship.save();
+    const allowedFields = [
+  "title",
+  "company",
+  "description",
+  "location",
+  "stipend",
+  "duration",
+  "skillsRequired",
+  "isActive",
+];
+
+allowedFields.forEach((field) => {
+  if (req.body[field] !== undefined) {
+    internship[field] = req.body[field];
+  }
+});
+
+await internship.save();
     res.json(internship);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 
 // @route DELETE /api/internships/:id
 router.delete("/:id", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid internship ID" });
+    }
     const internship = await Internship.findById(req.params.id);
     if (!internship) return res.status(404).json({ message: "Internship not found" });
     if (internship.postedBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to delete this internship" });
     }
-    await internship.deleteOne();
-    res.json({ message: "Internship removed" });
+    internship.isActive = false;
+    await internship.save();
+    res.json({ message: "Internship archived" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// @route GET /api/internships/recruiter/mine  (recruiter's own postings)
-router.get("/recruiter/mine", protect, authorize("recruiter", "admin"), async (req, res) => {
-  try {
-    const internships = await Internship.find({ postedBy: req.user._id }).sort({ createdAt: -1 });
-    res.json(internships);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 

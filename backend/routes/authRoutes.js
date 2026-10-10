@@ -2,6 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { protect } = require("../middleware/auth");
+const { sendApiError } = require("../utils/apiErrors");
 
 const router = express.Router();
 
@@ -11,19 +12,29 @@ const generateToken = (id) =>
 // @route POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role, company } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email and password are required" });
+    const { name, email, password, role, company } = req.body || {};
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      name.trim().length > 100 ||
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      typeof password !== "string" ||
+      password.length < 6 ||
+      Buffer.byteLength(password, "utf8") > 72
+    ) {
+      return res.status(400).json({ message: "Enter a valid name, email, and password (6-72 bytes)" });
     }
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Email already registered" });
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) return res.status(409).json({ message: "Email already registered" });
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: normalizedEmail,
       password,
-      role: ["student", "recruiter"].includes(role) ? role : "student",
-      company: company || "",
+      role: role === "recruiter" ? "recruiter" : "student",
+      company: role === "recruiter" && typeof company === "string" ? company.trim() : "",
     });
 
     res.status(201).json({
@@ -34,15 +45,26 @@ router.post("/register", async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+    return sendApiError(res, err);
   }
 });
 
 // @route POST /api/auth/login
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { email, password } = req.body || {};
+    if (
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      typeof password !== "string" ||
+      !password
+    ) {
+      return res.status(400).json({ message: "A valid email and password are required" });
+    }
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -54,7 +76,7 @@ router.post("/login", async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 

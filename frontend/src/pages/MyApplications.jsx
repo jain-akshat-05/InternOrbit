@@ -12,9 +12,21 @@ const statusColor = {
 
 export default function MyApplications() {
   const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/applications/mine").then(({ data }) => setApplications(data));
+    let active = true;
+    api.get("/applications/mine")
+      .then(({ data }) => {
+        if (active) setApplications(data);
+      })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || "Failed to load applications.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     const handleUpdate = (updated) => {
       setApplications((prev) =>
@@ -22,13 +34,17 @@ export default function MyApplications() {
       );
     };
     socket.on("application_status_update", handleUpdate);
-    return () => socket.off("application_status_update", handleUpdate);
+    return () => {
+      active = false;
+      socket.off("application_status_update", handleUpdate);
+    };
   }, []);
 
   return (
     <div className="page">
       <h2>My Applications</h2>
       <p className="muted">Status updates appear here live — no refresh needed.</p>
+      {error && <p className="error">{error}</p>}
       <div className="card-grid">
         {applications.map((a) => (
           <div className="card" key={a._id}>
@@ -39,7 +55,8 @@ export default function MyApplications() {
             </span>
           </div>
         ))}
-        {applications.length === 0 && <p>You haven't applied to anything yet.</p>}
+        {loading && <p>Loading applications...</p>}
+        {!loading && !error && applications.length === 0 && <p>You haven't applied to anything yet.</p>}
       </div>
     </div>
   );

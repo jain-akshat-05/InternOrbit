@@ -3,6 +3,7 @@ const User = require("../models/User");
 const Internship = require("../models/Internship");
 const Application = require("../models/Application");
 const { protect, authorize } = require("../middleware/auth");
+const { sendApiError } = require("../utils/apiErrors");
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ router.get("/stats", protect, authorize("admin"), async (req, res) => {
       recruiterPerformance,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 

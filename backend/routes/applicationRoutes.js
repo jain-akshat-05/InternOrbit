@@ -2,15 +2,24 @@ const express = require("express");
 const Application = require("../models/Application");
 const Internship = require("../models/Internship");
 const { protect, authorize } = require("../middleware/auth");
+const { isValidObjectId, sendApiError } = require("../utils/apiErrors");
 
 const router = express.Router();
 
 // @route POST /api/applications  (student applies to an internship)
 router.post("/", protect, authorize("student"), async (req, res) => {
   try {
-    const { internshipId, coverNote } = req.body;
+    const { internshipId, coverNote } = req.body || {};
+    if (!isValidObjectId(internshipId)) {
+      return res.status(400).json({ message: "Invalid internship ID" });
+    }
+    if (coverNote !== undefined && (typeof coverNote !== "string" || coverNote.length > 2000)) {
+      return res.status(400).json({ message: "Cover note must be 2000 characters or fewer" });
+    }
     const internship = await Internship.findById(internshipId);
-    if (!internship) return res.status(404).json({ message: "Internship not found" });
+    if (!internship || !internship.isActive) {
+      return res.status(404).json({ message: "Internship not found" });
+    }
 
     const application = await Application.create({
       internship: internship._id,
@@ -31,9 +40,9 @@ router.post("/", protect, authorize("student"), async (req, res) => {
     res.status(201).json(populated);
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json({ message: "You already applied to this internship" });
+      return res.status(409).json({ message: "You already applied to this internship" });
     }
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 
@@ -45,7 +54,7 @@ router.get("/mine", protect, authorize("student"), async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(applications);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 
@@ -58,14 +67,17 @@ router.get("/received", protect, authorize("recruiter", "admin"), async (req, re
       .sort({ createdAt: -1 });
     res.json(applications);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 
 // @route PUT /api/applications/:id/status  (recruiter updates status -> pushed live to student)
 router.put("/:id/status", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {
-    const { status } = req.body;
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid application ID" });
+    }
+    const { status } = req.body || {};
     const allowed = ["applied", "shortlisted", "interview", "rejected", "selected"];
     if (!allowed.includes(status)) return res.status(400).json({ message: "Invalid status" });
 
@@ -88,7 +100,7 @@ router.put("/:id/status", protect, authorize("recruiter", "admin"), async (req, 
 
     res.json(populated);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return sendApiError(res, err);
   }
 });
 

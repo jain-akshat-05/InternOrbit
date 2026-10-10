@@ -67,6 +67,10 @@ body {
   display: inline-block; color: white; padding: 4px 10px;
   border-radius: 12px; font-size: 0.8rem; text-transform: capitalize;
 }
+.badge-active { background: #15803d; }
+.badge-archived { background: #64748b; }
+.card button.archive-button { background: #b91c1c; }
+.card button.reactivate-button { background: #15803d; }
 
 .form-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;

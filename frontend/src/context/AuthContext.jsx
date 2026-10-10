@@ -1,32 +1,34 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import socket from "../socket";
+import { clearStoredUser, readStoredUser, storeUser } from "../authStorage";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("internorbit_user");
-    return stored ? JSON.parse(stored) : null;
+    return readStoredUser();
   });
 
   useEffect(() => {
-    if (user) {
+    if (user?.token) {
+      socket.auth = { token: user.token };
       socket.connect();
-      socket.emit("join", user._id);
+    } else {
+      socket.disconnect();
     }
     return () => {
       socket.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?._id]);
+  }, [user?._id, user?.token]);
 
   const login = (userData) => {
-    localStorage.setItem("internorbit_user", JSON.stringify(userData));
+    storeUser(userData);
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem("internorbit_user");
+    clearStoredUser();
     setUser(null);
     socket.disconnect();
   };

@@ -6,18 +6,22 @@ import { useAuth } from "../context/AuthContext";
 export default function Register() {
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "student", company: "" });
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
     try {
       const { data } = await api.post("/auth/register", form);
       login(data);
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -28,6 +32,7 @@ export default function Register() {
       <form onSubmit={handleSubmit}>
         <input
           placeholder="Full name"
+          maxLength={100}
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
@@ -42,6 +47,8 @@ export default function Register() {
         <input
           type="password"
           placeholder="Password"
+          minLength={6}
+          maxLength={72}
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
           required
@@ -57,7 +64,9 @@ export default function Register() {
             onChange={(e) => setForm({ ...form, company: e.target.value })}
           />
         )}
-        <button type="submit">Create Account</button>
+        <button type="submit" disabled={submitting}>
+          {submitting ? "Creating account..." : "Create Account"}
+        </button>
       </form>
       <p>Already have an account? <Link to="/login">Login here</Link></p>
     </div>
