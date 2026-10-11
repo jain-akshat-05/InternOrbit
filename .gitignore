@@ -8,6 +8,9 @@ node_modules/
 # Build output
 dist/
 
+# Private development uploads
+backend/storage/
+
 # Local project archives
 backend.zip
 frontend.zip

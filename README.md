@@ -5,15 +5,17 @@ InternOrbit is a MERN internship portal with separate student, recruiter, and ad
 ## Implemented Features
 
 - Student and recruiter registration and login with bcrypt password hashing and seven-day JWTs.
-- Public browsing and text search of active internships, including location filtering through the API.
-- Student applications with a database unique index preventing duplicate submissions.
-- Recruiter posting create, list, edit, archive, and reactivate operations, with ownership checks on mutations. Archived postings retain their applications and history.
-- Recruiter application review and status updates using the schema's allowed status values.
+- Student profile editing, profile-completion calculation, and private PDF resume upload, replacement, download, and guarded deletion.
+- Public internship browsing/search, detail review, and recruiter-configured application questions.
+- Resume-backed applications with required answers, duplicate prevention, status history, detail view, and controlled withdrawal.
+- Recruiter posting create, list, edit, archive, and reactivate operations, with ownership checks. Archived postings retain applications and history.
+- Recruiter application review, filters, candidate profile/resume access, forward-only status updates, and hiring-round management.
+- Scheduled rounds, candidate assignments, private recruiter feedback, and separately published student-visible outcomes.
 - Admin-only platform counts, application status breakdown, and recruiter posting statistics.
-- Socket.IO notifications for new applications and status changes. Socket connections authenticate using the existing JWT.
+- Persistent, user-scoped notifications with Socket.IO delivery for applications, status changes, and round updates.
 - Protected frontend routes and role-aware navigation.
 
-There is no profile-editing endpoint or admin user-management endpoint in the current implementation. Admin accounts must be provisioned outside public registration; registration only creates student or recruiter accounts.
+Admin user-management is not implemented. Admin accounts must be provisioned outside public registration; registration only creates student or recruiter accounts. There is no online exam engine, automated grading, or video interview service; round links and outcomes are managed by recruiters.
 
 ## Stack and Architecture
 
@@ -21,16 +23,17 @@ There is no profile-editing endpoint or admin user-management endpoint in the cu
 - Backend: Node.js, Express 4, Mongoose 8, JWT, bcryptjs, and Socket.IO.
 - Database: MongoDB.
 
-The React app calls the Express JSON API through Axios. The request interceptor adds the bearer token stored for the current user. Express verifies tokens and loads the current user from MongoDB before role checks. Mongoose schemas define users, internships, and applications; the application schema has a unique `(internship, student)` index. Socket.IO verifies the same JWT at connection time and derives the private notification room from its signed user ID.
+The React app calls the Express API through Axios. The request interceptor adds the bearer token stored for the current user. Express verifies tokens and loads the current user from MongoDB before role checks. Mongoose schemas define users, internships, applications, resumes, hiring rounds, round assignments, and notifications; a unique `(internship, student)` index prevents duplicate applications. Resume bytes are stored under random filenames outside public static directories; MongoDB stores ownership and metadata. Socket.IO derives private rooms from verified JWT identities.
 
 ```text
 backend/
 	config/       db.js, env.js
 	middleware/   auth.js, socketAuth.js
-	models/       User.js, Internship.js, Application.js
-	routes/       authRoutes.js, internshipRoutes.js, applicationRoutes.js, adminRoutes.js
-	test/         Node built-in test files
-	utils/        apiErrors.js
+	models/       User.js, Internship.js, Application.js, Resume.js, HiringRound.js, RoundAssignment.js, Notification.js
+	routes/       authRoutes.js, profileRoutes.js, internshipRoutes.js, applicationRoutes.js, roundRoutes.js, notificationRoutes.js, adminRoutes.js
+	test/         Node built-in route/security test files
+	utils/        apiErrors.js, notifications.js, resumeStorage.js
+	storage/      private local resume files (ignored by Git)
 	server.js
 frontend/
 	src/api/      Axios client
@@ -56,9 +59,14 @@ MONGO_URI=mongodb://127.0.0.1:27017/internorbit
 JWT_SECRET=replace-with-a-random-secret-of-at-least-32-characters
 PORT=5000
 CLIENT_URL=http://localhost:5173
+RESUME_MAX_BYTES=5242880
+# Optional; defaults to backend/storage/resumes
+# RESUME_STORAGE_DIR=D:/internorbit-private/resumes
 ```
 
 Run the backend in development mode with `npm run dev` or start it with `npm start` from `backend/`. It validates required configuration and connects to MongoDB before opening the HTTP port. `CLIENT_URL` is the one allowed browser origin; if omitted, the development default is `http://localhost:5173`.
+
+Resume uploads are PDF-only and default to a 5 MiB maximum. Files are stored outside public static directories. For production or multiple backend instances, configure a durable private volume or replace the local storage adapter with private object storage; keep downloads behind authenticated routes.
 
 In a second terminal, install and run the frontend:
 
@@ -80,6 +88,12 @@ Protected HTTP endpoints use `Authorization: Bearer <token>`.
 | POST | `/api/auth/register` | Public | Register as student or recruiter |
 | POST | `/api/auth/login` | Public | Authenticate and receive a JWT |
 | GET | `/api/auth/me` | Authenticated | Return the current user without the password |
+| GET | `/api/profile/me` | Authenticated | Read the caller's profile and completion percentage |
+| PUT | `/api/profile/me` | Student or recruiter | Update allowlisted profile/company fields |
+| PUT | `/api/profile/me/resume` | Student | Upload/replace a PDF resume as an `application/pdf` raw body |
+| GET | `/api/profile/me/resume` | Student | Download current resume |
+| DELETE | `/api/profile/me/resume` | Student | Delete current resume only if no application references it |
+| GET | `/api/profile/me/resumes/:resumeId/download` | Owning student | Download a previously submitted resume |
 | GET | `/api/internships?search=&location=` | Public | Search active postings |
 | GET | `/api/internships/:id` | Public | Read an active posting |
 | POST | `/api/internships` | Recruiter or admin | Create a posting |
@@ -88,27 +102,43 @@ Protected HTTP endpoints use `Authorization: Bearer <token>`.
 | DELETE | `/api/internships/:id` | Owner recruiter or admin | Archive a posting while preserving applications |
 | POST | `/api/applications` | Student | Apply to an active posting |
 | GET | `/api/applications/mine` | Student | List the current user's applications |
+| GET | `/api/applications/:id` | Applicant, posting recruiter, or admin | Read authorized application details and published round information |
+| GET | `/api/applications/:id/resume` | Applicant, posting recruiter, or admin | Download the resume attached at submission |
+| PATCH | `/api/applications/:id/withdraw` | Applicant | Withdraw before a terminal state |
 | GET | `/api/applications/received` | Recruiter or admin | List applications for the current user's postings |
-| PUT | `/api/applications/:id/status` | Owning recruiter or admin | Set `applied`, `shortlisted`, `interview`, `rejected`, or `selected` |
+| PUT | `/api/applications/:id/status` | Owning recruiter or admin | Advance through allowed application states |
+| GET | `/api/rounds/internship/:internshipId` | Owner recruiter or admin | List rounds for a posting |
+| GET | `/api/rounds/upcoming/recruiter` | Recruiter or admin | List caller's published upcoming rounds |
+| POST | `/api/rounds` | Owner recruiter or admin | Create a round |
+| PUT | `/api/rounds/:id` | Owner recruiter or admin | Edit, schedule, and publish a round |
+| DELETE | `/api/rounds/:id` | Owner recruiter or admin | Remove only before candidate assignments exist |
+| GET | `/api/rounds/:id/assignments` | Owner recruiter or admin | Review assigned candidates and private feedback |
+| POST | `/api/rounds/:id/assign` | Owner recruiter or admin | Assign eligible applicants |
+| PUT | `/api/rounds/:id/results/:applicationId` | Owner recruiter or admin | Set outcome and control result publication |
+| GET | `/api/notifications` | Authenticated | List the caller's persisted notifications |
+| PATCH | `/api/notifications/:id/read` | Notification owner | Mark one notification as read |
 | GET | `/api/admin/stats` | Admin | Read platform aggregate statistics |
 
-Socket events sent by the server are `new_application` to the posting recruiter's room and `application_status_update` to the student's room. Clients cannot select a room identity; the server derives it from the verified JWT.
+Socket events include `new_application`, `application_status_update`, and `notification`. Clients cannot select a room identity; the server derives it from the verified JWT. Persisted notification and REST data remain the source of truth.
 
 ## Authorization and Security Notes
 
-Public registration only accepts the student and recruiter roles. The administrator role is not assignable through that endpoint. Recruiter write operations verify posting ownership; application status updates verify the owning recruiter, with admin access explicitly allowed. Student application queries are scoped to the authenticated student.
+Public registration only accepts the student and recruiter roles. The administrator role is not assignable through that endpoint. Recruiter posting and round writes verify posting ownership. Candidate assignment validates every application against the round's internship. Student profile/application/resume operations are scoped to the authenticated student; recruiters can access candidates only for their own postings. Round notes remain private; student responses omit them and hide outcomes until published. Application status transitions are validated server-side.
 
 JWTs are stored in browser local storage in this implementation. That keeps the setup simple but means an XSS vulnerability could expose a token; a production deployment should assess an HTTP-only cookie/session design, rate limiting, and token revocation. Do not commit `.env` files or use development secrets in production.
 
 ## Verification
 
-From `backend/`, run `npm test` for the Node built-in unit tests. From `frontend/`, run `npm run build` for the production build. The current tests cover config validation, token and role middleware, Socket.IO identity, API error mapping, and route ordering. They do not replace database-backed HTTP integration tests or browser end-to-end tests.
+From `backend/`, run `npm test` for the Node built-in test suite. From `frontend/`, run `npm run build` for the production build. Tests cover config, auth/roles, application validation/transitions, route ownership/order, resume validation/path safety, round permissions/result privacy, and socket identity. These are deterministic unit/route-handler tests; a full database-backed HTTP integration suite has not been run.
 
 ## Known Limitations
 
-- MongoDB-backed routes and real-time delivery require a reachable MongoDB instance and have not been covered by automated integration tests.
+- MongoDB-backed routes and real-time delivery require a reachable MongoDB instance; full live-database integration tests have not been run.
+- Local resume storage is for development. Production requires a durable private volume or private object-storage adapter and backups.
+- Existing databases should be reviewed for legacy profile fields and indexes before deployment; no automated production migration runner is included.
 - There is no pagination, password reset, email verification, or admin account-management workflow.
-- Browser behavior has not been verified with an automated end-to-end test suite.
+- No online examination engine, automated grading, or video interview integration is included.
+- Authenticated workflows still need manual browser verification using student, recruiter, and admin accounts.
 
 ## Interview Guide
 

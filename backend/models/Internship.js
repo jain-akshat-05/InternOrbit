@@ -9,6 +9,7 @@ const internshipSchema = new mongoose.Schema(
     stipend: { type: Number, default: 0 },
     duration: { type: String, default: "3 months" },
     skillsRequired: [{ type: String }],
+    applicationQuestions: [{ type: String, trim: true, maxlength: 400 }],
     postedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     isActive: { type: Boolean, default: true },
   },

@@ -1,3 +1,5 @@
+const path = require("node:path");
+
 const loadConfig = (env = process.env) => {
   const missing = ["MONGO_URI", "JWT_SECRET"].filter(
     (key) => !env[key] || !env[key].trim()
@@ -28,11 +30,20 @@ const loadConfig = (env = process.env) => {
     throw new Error("CLIENT_URL must be a valid HTTP or HTTPS URL");
   }
 
+  const resumeMaxBytes = env.RESUME_MAX_BYTES === undefined ? 5 * 1024 * 1024 : Number(env.RESUME_MAX_BYTES);
+  if (!Number.isInteger(resumeMaxBytes) || resumeMaxBytes < 1024 || resumeMaxBytes > 20 * 1024 * 1024) {
+    throw new Error("RESUME_MAX_BYTES must be an integer between 1024 and 20971520");
+  }
+
   return {
     mongoUri: env.MONGO_URI.trim(),
     jwtSecret,
     port,
     clientUrl: clientOrigin,
+    resumeMaxBytes,
+    resumeStorageDir: path.resolve(
+      env.RESUME_STORAGE_DIR || path.join(__dirname, "..", "storage", "resumes")
+    ),
   };
 };
 

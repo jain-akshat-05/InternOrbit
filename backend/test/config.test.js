@@ -26,6 +26,8 @@ test("normalizes the client origin and port", () => {
     jwtSecret: "test-secret-that-is-long-enough-for-validation",
     port: 5001,
     clientUrl: "http://localhost:5173",
+    resumeMaxBytes: 5 * 1024 * 1024,
+    resumeStorageDir: require("node:path").resolve(__dirname, "..", "storage", "resumes"),
   });
 });
 
@@ -35,4 +37,9 @@ test("rejects an invalid port or client URL", () => {
     () => loadConfig({ ...validEnv(), CLIENT_URL: "not-a-url" }),
     /CLIENT_URL/
   );
+});
+
+test("validates resume upload size configuration", () => {
+  assert.throws(() => loadConfig({ ...validEnv(), RESUME_MAX_BYTES: "512" }), /RESUME_MAX_BYTES/);
+  assert.equal(loadConfig({ ...validEnv(), RESUME_MAX_BYTES: "1048576" }).resumeMaxBytes, 1048576);
 });

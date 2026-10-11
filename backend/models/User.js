@@ -10,6 +10,22 @@ const userSchema = new mongoose.Schema(
     company: { type: String, default: "" }, // used for recruiters
     resumeUrl: { type: String, default: "" }, // used for students
     skills: [{ type: String }],
+    profile: {
+      phone: { type: String, default: "", trim: true },
+      education: { type: String, default: "", trim: true },
+      college: { type: String, default: "", trim: true },
+      degree: { type: String, default: "", trim: true },
+      graduationYear: { type: Number, min: 1950, max: 2100 },
+      portfolioUrl: { type: String, default: "", trim: true },
+      githubUrl: { type: String, default: "", trim: true },
+      linkedinUrl: { type: String, default: "", trim: true },
+    },
+    companyProfile: {
+      description: { type: String, default: "", trim: true, maxlength: 2000 },
+      website: { type: String, default: "", trim: true },
+      industry: { type: String, default: "", trim: true, maxlength: 100 },
+    },
+    currentResume: { type: mongoose.Schema.Types.ObjectId, ref: "Resume", default: null },
   },
   { timestamps: true }
 );

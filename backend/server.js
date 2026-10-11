@@ -9,8 +9,11 @@ const createSocketAuth = require("./middleware/socketAuth");
 
 const authRoutes = require("./routes/authRoutes");
 const internshipRoutes = require("./routes/internshipRoutes");
-const applicationRoutes = require("./routes/applicationRoutes");
+const createApplicationRoutes = require("./routes/applicationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const createProfileRoutes = require("./routes/profileRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const roundRoutes = require("./routes/roundRoutes");
 
 const app = express();
 app.use(cors({ origin: config.clientUrl }));
@@ -32,14 +35,20 @@ app.set("io", io);
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", createProfileRoutes(config));
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/rounds", roundRoutes);
 app.use("/api/internships", internshipRoutes);
-app.use("/api/applications", applicationRoutes);
+app.use("/api/applications", createApplicationRoutes(config));
 app.use("/api/admin", adminRoutes);
 
 // basic error handler
 app.use((err, req, res, next) => {
   if (err?.type === "entity.parse.failed") {
     return res.status(400).json({ message: "Invalid JSON request body" });
+  }
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({ message: "Request body exceeds the allowed size" });
   }
   console.error("Unhandled request error", { name: err?.name || "Error" });
   res.status(500).json({ message: "Internal server error" });

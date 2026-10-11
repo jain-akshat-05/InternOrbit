@@ -27,6 +27,15 @@ export function AuthProvider({ children }) {
     setUser(userData);
   };
 
+  const updateUser = (userData) => {
+    setUser((current) => {
+      if (!current) return current;
+      const updated = { ...current, ...userData };
+      storeUser(updated);
+      return updated;
+    });
+  };
+
   const logout = () => {
     clearStoredUser();
     setUser(null);
@@ -34,7 +43,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

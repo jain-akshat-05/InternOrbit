@@ -5,6 +5,13 @@ const { isValidObjectId, sendApiError } = require("../utils/apiErrors");
 
 const router = express.Router();
 
+const validateQuestions = (questions) => {
+  if (!Array.isArray(questions) || questions.length > 10 || questions.some((question) => typeof question !== "string" || !question.trim() || question.trim().length > 400)) {
+    return null;
+  }
+  return questions.map((question) => question.trim());
+};
+
 // @route GET /api/internships  (public list, with optional search)
 router.get("/", async (req, res) => {
   try {
@@ -67,7 +74,9 @@ router.get("/:id", async (req, res) => {
 // @route POST /api/internships  (recruiter only)
 router.post("/", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {
-    const { title, company, description, location, stipend, duration, skillsRequired } = req.body;
+    const { title, company, description, location, stipend, duration, skillsRequired, applicationQuestions = [] } = req.body || {};
+    const questions = validateQuestions(applicationQuestions);
+    if (!questions) return res.status(400).json({ message: "Application questions must contain up to 10 non-empty prompts of 400 characters or fewer" });
     const internship = await Internship.create({
       title,
       company,
@@ -76,6 +85,7 @@ router.post("/", protect, authorize("recruiter", "admin"), async (req, res) => {
       stipend,
       duration,
       skillsRequired,
+      applicationQuestions: questions,
       postedBy: req.user._id,
     });
     res.status(201).json(internship);
@@ -103,14 +113,21 @@ router.put("/:id", protect, authorize("recruiter", "admin"), async (req, res) =>
   "stipend",
   "duration",
   "skillsRequired",
+  "applicationQuestions",
   "isActive",
 ];
 
 allowedFields.forEach((field) => {
   if (req.body[field] !== undefined) {
-    internship[field] = req.body[field];
+    internship[field] = field === "applicationQuestions"
+      ? validateQuestions(req.body[field])
+      : req.body[field];
   }
 });
+
+if (req.body.applicationQuestions !== undefined && !internship.applicationQuestions) {
+  return res.status(400).json({ message: "Application questions must contain up to 10 non-empty prompts of 400 characters or fewer" });
+}
 
 await internship.save();
     res.json(internship);

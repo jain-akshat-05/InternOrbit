@@ -7,10 +7,23 @@ const applicationSchema = new mongoose.Schema(
     recruiter: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     status: {
       type: String,
-      enum: ["applied", "shortlisted", "interview", "rejected", "selected"],
+      enum: ["applied", "shortlisted", "assessment", "interview", "selected", "rejected", "withdrawn"],
       default: "applied",
     },
     coverNote: { type: String, default: "" },
+    coverLetter: { type: String, default: "", maxlength: 5000 },
+    resume: { type: mongoose.Schema.Types.ObjectId, ref: "Resume", default: null },
+    answers: [{
+      question: { type: String, required: true, trim: true, maxlength: 400 },
+      answer: { type: String, required: true, trim: true, maxlength: 3000 },
+    }],
+    statusHistory: [{
+      from: { type: String, default: null },
+      to: { type: String, required: true },
+      changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+      note: { type: String, default: "", maxlength: 1000 },
+      changedAt: { type: Date, default: Date.now },
+    }],
   },
   { timestamps: true }
 );
