@@ -1,5 +1,6 @@
 :root {
-  font-family: "Aptos", "Segoe UI Variable", "Trebuchet MS", sans-serif;
+  --font-ui: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
   color: #202b27;
   background: #f4f7f5;
   font-synthesis: none;
@@ -27,11 +28,12 @@
   --info-soft: #edf5f8;
   --warning: #91681e;
   --warning-soft: #fbf4df;
-  --shadow-sm: 0 1px 2px rgb(24 43 34 / 5%), 0 4px 14px rgb(24 43 34 / 3%);
+  --shadow-sm: 0 1px 2px rgb(24 43 34 / 5%), 0 6px 18px rgb(24 43 34 / 4%);
+  --shadow-raised: 0 10px 28px rgb(24 43 34 / 9%);
   --shadow-nav: 0 1px 0 rgb(31 51 41 / 7%);
-  --radius-sm: 5px;
-  --radius-control: 7px;
-  --radius-card: 8px;
+  --radius-sm: 7px;
+  --radius-control: 9px;
+  --radius-card: 12px;
   --content-width: 1160px;
 }
 
@@ -66,7 +68,7 @@ textarea {
 
 button {
   display: inline-flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -78,7 +80,7 @@ button {
   font-weight: 650;
   line-height: 1.2;
   cursor: pointer;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 button:hover:not(:disabled) {
@@ -88,6 +90,10 @@ button:hover:not(:disabled) {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 a {
@@ -309,12 +315,17 @@ a:hover {
   color: #fff;
   font-size: 14px;
   font-weight: 650;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .button-primary:hover,
 .button-primary.is-active {
   background: var(--brand-hover);
   color: #fff;
+}
+
+.button-primary:hover {
+  box-shadow: 0 4px 12px rgb(16 86 63 / 18%);
 }
 
 .button-quiet {
@@ -370,26 +381,33 @@ a:hover {
 
 .page {
   width: min(calc(100% - 48px), var(--content-width));
-  margin: 42px auto 72px;
+  margin: 40px auto 72px;
   padding: 0;
+}
+
+.page h1,
+.page h2,
+.page h3,
+.page h4,
+.auth-card h2 {
+  color: var(--ink);
+  font-family: inherit;
+  letter-spacing: -0.025em;
 }
 
 .page > h2,
 .auth-card h2 {
-  margin: 0 0 18px;
-  color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1.2;
+  margin: 0 0 16px;
+  font-size: clamp(1.65rem, 3vw, 2rem);
+  font-weight: 720;
+  line-height: 1.18;
 }
 
 .page > h3 {
-  margin: 32px 0 14px;
-  color: var(--ink);
+  margin: 30px 0 14px;
   font-size: 18px;
-  font-weight: 680;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   line-height: 1.35;
 }
 
@@ -424,7 +442,7 @@ input,
 select,
 textarea {
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   padding: 9px 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-control);
@@ -437,7 +455,7 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #839088;
+  color: #68776e;
   opacity: 1;
 }
 
@@ -473,7 +491,7 @@ textarea {
 
 .card {
   min-width: 0;
-  padding: 20px;
+  padding: 21px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
@@ -527,10 +545,11 @@ textarea {
   border: 1px solid rgb(31 51 41 / 12%);
   border-radius: 999px;
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .badge-active {
@@ -582,7 +601,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
-  box-shadow: 0 14px 38px rgb(24 43 34 / 7%);
+  box-shadow: var(--shadow-raised);
 }
 
 .auth-card h2 {
@@ -631,8 +650,9 @@ textarea {
   padding: 11px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.45;
 }
 
 .error {
@@ -667,15 +687,15 @@ textarea {
 
 .table th,
 .table td {
-  padding: 12px 15px;
+  padding: 13px 16px;
   border-bottom: 1px solid #e8eeea;
   text-align: left;
   vertical-align: middle;
 }
 
 .table th {
-  background: #f6f9f7;
-  color: #59675f;
+  background: #f2f6f3;
+  color: #435249;
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.04em;
@@ -683,7 +703,7 @@ textarea {
 }
 
 .table td {
-  color: #34423b;
+  color: #2f3d35;
   font-size: 13px;
 }
 
@@ -706,7 +726,7 @@ textarea {
 
 .stat-card {
   min-width: 0;
-  padding: 19px;
+  padding: 21px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
@@ -716,9 +736,9 @@ textarea {
 .stat-card h3 {
   margin: 0;
   color: var(--brand);
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 30px;
-  font-weight: 600;
+  font-weight: 720;
+  letter-spacing: -0.04em;
   line-height: 1.1;
 }
 
@@ -904,8 +924,9 @@ textarea {
 
 .profile-completion strong {
   color: var(--brand);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-ui);
   font-size: 23px;
+  font-weight: 720;
 }
 
 .completion-track {
@@ -931,7 +952,7 @@ textarea {
 
 .profile-section {
   margin: 20px 0;
-  padding: 22px;
+  padding: 24px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
@@ -956,9 +977,9 @@ textarea {
   display: grid;
   min-width: 0;
   gap: 6px;
-  color: #46554d;
+  color: #3f4f46;
   font-size: 12px;
-  font-weight: 670;
+  font-weight: 680;
 }
 
 .profile-fields .profile-field-wide {
@@ -1080,9 +1101,9 @@ textarea {
 
 .application-form-section > h2 {
   margin: 5px 0 16px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-ui);
   font-size: 25px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .application-form {
@@ -1138,9 +1159,10 @@ textarea {
 .application-detail-heading h1 {
   margin: 7px 0 5px;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 30px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: clamp(1.6rem, 3vw, 1.9rem);
+  font-weight: 720;
+  letter-spacing: -0.035em;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -1214,9 +1236,10 @@ textarea {
 .detail-aside h2 {
   margin: 9px 0 5px;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-ui);
   font-size: 19px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .detail-aside p {
@@ -1797,9 +1820,10 @@ textarea {
 .auth-visual-copy h2 {
   margin: 10px 0 8px;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-ui);
   font-size: 29px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   line-height: 1.2;
 }
 
@@ -1934,9 +1958,10 @@ textarea {
   max-width: 540px;
   margin: 10px 0 12px;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 38px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 740;
+  letter-spacing: -0.045em;
   line-height: 1.12;
 }
 
@@ -1988,9 +2013,10 @@ textarea {
 .dashboard-heading h2 {
   margin: 5px 0 0;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 29px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: clamp(1.6rem, 3vw, 1.85rem);
+  font-weight: 720;
+  letter-spacing: -0.035em;
   line-height: 1.2;
 }
 
@@ -2033,6 +2059,74 @@ textarea {
   border: 0;
   outline: 0;
   box-shadow: none;
+}
+
+.internship-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(190px, 0.8fr) auto;
+  align-items: end;
+  gap: 12px;
+  max-width: none;
+  margin: 20px 0 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.internship-filter {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #3f4f46;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.internship-filter .search-field {
+  width: 100%;
+}
+
+.internship-search-form > button {
+  min-width: 150px;
+}
+
+.application-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.application-filters label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #3f4f46;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.application-filters button {
+  min-width: 140px;
+}
+
+.search-feedback {
+  grid-column: 1 / -1;
+  margin: 8px 0;
+  padding: 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+  color: var(--muted);
+  text-align: center;
 }
 
 .internship-grid {
@@ -2325,6 +2419,68 @@ textarea {
   text-align: right;
 }
 
+.application-card-action {
+  margin-top: 14px;
+}
+
+.application-card-action a {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.upcoming-round-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+.upcoming-round-item {
+  display: grid;
+  grid-template-columns: 43px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e3ebe5;
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  color: inherit;
+  text-decoration: none;
+}
+
+.upcoming-round-item:hover {
+  border-color: #bdd4c5;
+  background: #edf5ef;
+  color: inherit;
+}
+
+.upcoming-round-item > span:not(.application-mark) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.upcoming-round-item strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.upcoming-round-item small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcoming-round-item time {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .application-empty-state {
   display: grid;
   min-height: 225px;
@@ -2348,9 +2504,10 @@ textarea {
 
 .application-empty-state h3 {
   margin: 6px 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-ui);
   font-size: 23px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .application-empty-state .button-primary {
@@ -2402,9 +2559,9 @@ textarea {
   display: block;
   margin-top: 3px;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
   font-size: 25px;
-  font-weight: 600;
+  font-weight: 720;
+  letter-spacing: -0.035em;
   line-height: 1.1;
 }
 
@@ -2429,6 +2586,10 @@ textarea {
   font-size: 14px;
 }
 
+.inline-empty .button-primary {
+  margin-top: 16px;
+}
+
 .status-overview,
 .admin-section {
   margin: 24px 0 32px;
@@ -2448,7 +2609,8 @@ textarea {
   margin: 4px 0 0;
   color: var(--ink);
   font-size: 17px;
-  font-weight: 690;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .section-heading-compact > .muted {
@@ -2553,6 +2715,24 @@ textarea {
   .admin-page .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .internship-search-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .internship-search-form > button {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .application-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .application-filters button {
+    grid-column: 2;
+    justify-self: end;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2608,6 +2788,36 @@ textarea {
 
   .admin-page .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .internship-search-form {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .internship-search-form > button {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .application-filters {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .application-filters button {
+    grid-column: 1;
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .upcoming-round-item {
+    grid-template-columns: 43px minmax(0, 1fr);
+  }
+
+  .upcoming-round-item time {
+    grid-column: 2;
+    text-align: left;
   }
 }
 

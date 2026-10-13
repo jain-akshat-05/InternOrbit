@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { onUnauthorized } from "../api/axios";
 import socket from "../socket";
 import { clearStoredUser, readStoredUser, storeUser } from "../authStorage";
 
@@ -36,11 +37,16 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearStoredUser();
     setUser(null);
     socket.disconnect();
-  };
+  }, []);
+
+  useEffect(() => {
+    onUnauthorized(logout);
+    return () => onUnauthorized(null);
+  }, [logout]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, updateUser }}>

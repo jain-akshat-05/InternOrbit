@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
 import Icon from "../components/Icon";
@@ -27,25 +27,37 @@ const toneFor = (company = "") => {
 export default function InternshipList() {
   const [internships, setInternships] = useState([]);
   const [search, setSearch] = useState("");
+  const [location, setLocation] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const requestId = useRef(0);
   const { user } = useAuth();
 
-  const fetchInternships = async (query = search) => {
+  const fetchInternships = async (query = search, place = location) => {
+    const currentRequestId = ++requestId.current;
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.get("/internships", { params: { search: query } });
+      const params = {
+        ...(query.trim() ? { search: query.trim() } : {}),
+        ...(place.trim() ? { location: place.trim() } : {}),
+      };
+      const { data } = await api.get("/internships", { params });
+      if (currentRequestId !== requestId.current) return;
       setInternships(data);
     } catch (err) {
+      if (currentRequestId !== requestId.current) return;
       setError(err.response?.data?.message || "Failed to load internships.");
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchInternships();
+    return () => {
+      requestId.current += 1;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,24 +86,39 @@ export default function InternshipList() {
             <span className="eyebrow">OPEN ROLES</span>
             <h2 id="opportunities-title">Explore internships</h2>
           </div>
-          {!loading && !error && <p className="result-count">{internships.length} {internships.length === 1 ? "opportunity" : "opportunities"}</p>}
+          {!loading && !error && <p className="result-count" role="status" aria-live="polite">Showing {internships.length} {internships.length === 1 ? "opportunity" : "opportunities"}</p>}
         </div>
-        <form onSubmit={handleSearch} className="search-bar">
-          <label className="search-field">
-            <Icon name="search" size={19} />
+        <form onSubmit={handleSearch} className="search-bar internship-search-form">
+          <label className="internship-filter">
+            <span>Keywords</span>
+            <span className="search-field">
+              <Icon name="search" size={19} />
+              <input
+                type="search"
+                aria-label="Search internships by title, company, or skill"
+                placeholder="Title, company, or skill"
+                maxLength={100}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </span>
+          </label>
+          <label className="internship-filter">
+            <span>Location</span>
             <input
               type="search"
-              aria-label="Search internships by title, company, or skill"
-              placeholder="Search by title, company, or skill"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Filter internships by location"
+              placeholder="City, region, or remote"
+              maxLength={100}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
             />
           </label>
-          <button type="submit">Search</button>
+          <button type="submit">{loading ? "Searching..." : "Search internships"}</button>
         </form>
         {error && <p className="error" role="alert">{error}</p>}
-        <div className="card-grid internship-grid">
-        {internships.map((i) => (
+        <div className="card-grid internship-grid" aria-busy={loading}>
+        {!loading && !error && internships.map((i) => (
           <article className="internship-card" key={i._id}>
             <div className="internship-card-top">
               <div className={`company-avatar ${toneFor(i.company)}`} aria-label={`${i.company} initials`}>
@@ -121,11 +148,18 @@ export default function InternshipList() {
             </div>
           </article>
         ))}
-        {loading && <p>Loading internships...</p>}
+        {loading && <p className="search-feedback" role="status" aria-live="polite">Loading internships…</p>}
         {!loading && !error && internships.length === 0 && (
           <div className="empty-opportunities">
             <img src="/images/opportunity-map.svg" alt="" />
-            <div><h3>No internships found</h3><p>Try another title, company, or skill.</p></div>
+            <div>
+              <h3>No internships found</h3>
+              <p>
+                {search.trim() || location.trim()
+                  ? "No open roles match your filters. Try changing or clearing a keyword or location."
+                  : "There are no open internships to show right now. Check back later."}
+              </p>
+            </div>
           </div>
         )}
         </div>

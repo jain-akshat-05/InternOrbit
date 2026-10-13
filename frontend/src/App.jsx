@@ -12,6 +12,7 @@ import InternshipDetails from "./pages/InternshipDetails";
 import MyApplicationDetails from "./pages/MyApplicationDetails";
 import Notifications from "./pages/Notifications";
 import RecruiterRounds from "./pages/RecruiterRounds";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -88,6 +89,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
     </div>

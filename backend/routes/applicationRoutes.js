@@ -143,6 +143,23 @@ router.get("/mine", protect, authorize("student"), async (req, res) => {
   }
 });
 
+// @route GET /api/applications/received/summary (counts recruiter-owned applications)
+router.get("/received/summary", protect, authorize("recruiter", "admin"), async (req, res) => {
+  try {
+    const statusBreakdown = await Application.aggregate([
+      { $match: { recruiter: req.user._id } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    res.json({
+      totalApplications: statusBreakdown.reduce((total, status) => total + status.count, 0),
+      statusBreakdown,
+    });
+  } catch (err) {
+    return sendApiError(res, err);
+  }
+});
+
 // @route GET /api/applications/received  (recruiter views applications to their postings)
 router.get("/received", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {

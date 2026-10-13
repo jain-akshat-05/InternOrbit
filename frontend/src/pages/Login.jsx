@@ -1,7 +1,21 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+
+const getSafeReturnPath = (from) => {
+  const path = from?.pathname;
+  if (
+    typeof path !== "string" ||
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path === "/login" ||
+    path.startsWith("/register")
+  ) {
+    return "/";
+  }
+  return `${path}${from.search || ""}`;
+};
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -9,6 +23,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,7 +32,7 @@ export default function Login() {
     try {
       const { data } = await api.post("/auth/login", form);
       login(data);
-      navigate("/");
+      navigate(getSafeReturnPath(location.state?.from), { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     } finally {

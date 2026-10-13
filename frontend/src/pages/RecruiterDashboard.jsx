@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
 import socket from "../socket";
@@ -23,7 +23,7 @@ const STATUS_FILTER_OPTIONS = [
   "withdrawn",
 ];
 const NEXT_STATUS_OPTIONS = {
-  applied: ["shortlisted", "assessment", "rejected"],
+  applied: ["shortlisted", "rejected"],
   shortlisted: ["assessment", "interview", "rejected"],
   assessment: ["interview", "rejected"],
   interview: ["selected", "rejected"],
@@ -46,6 +46,7 @@ const EMPTY_FORM = {
 export default function RecruiterDashboard() {
   const [myInternships, setMyInternships] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [applicationSummary, setApplicationSummary] = useState({ totalApplications: 0, statusBreakdown: [] });
   const [upcomingRounds, setUpcomingRounds] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [internshipFilter, setInternshipFilter] = useState("");
@@ -59,23 +60,53 @@ export default function RecruiterDashboard() {
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const summaryRequestId = useRef(0);
   const activePostingCount = myInternships.filter((internship) => internship.isActive).length;
-  const interviewCount = applications.filter((application) => application.status === "interview").length;
-  const statusMaximum = Math.max(1, ...STATUS_FILTER_OPTIONS.map((status) => applications.filter((application) => application.status === status).length));
+  const applicationCounts = Object.fromEntries(
+    applicationSummary.statusBreakdown.map(({ _id, count }) => [_id, count])
+  );
+  const interviewCount = applicationCounts.interview || 0;
+  const statusMaximum = Math.max(1, ...STATUS_FILTER_OPTIONS.map((status) => applicationCounts[status] || 0));
+
+  const loadApplicationSummary = async () => {
+    const currentRequestId = ++summaryRequestId.current;
+    const { data } = await api.get("/applications/received/summary");
+    if (currentRequestId === summaryRequestId.current) {
+      setApplicationSummary(data);
+    }
+    return data;
+  };
 
   const loadData = async () => {
     try {
       setError("");
 
-      const [i, a, rounds] = await Promise.all([
+      const [i, a, summary, rounds] = await Promise.all([
         api.get("/internships/recruiter/mine"),
         api.get("/applications/received"),
+        loadApplicationSummary().catch(() => null),
         api.get("/rounds/upcoming/recruiter"),
       ]);
 
       setMyInternships(i.data);
       setApplications(a.data);
       setUpcomingRounds(rounds.data);
+
+      if (!summary) {
+        const counts = a.data.reduce((result, application) => {
+          result[application.status] =
+            (result[application.status] || 0) + 1;
+          return result;
+        }, {});
+
+        setApplicationSummary({
+          totalApplications: a.data.length,
+          statusBreakdown: Object.entries(counts).map(([_id, count]) => ({
+            _id,
+            count,
+          })),
+        });
+      }
     } catch (err) {
       setError(
         err.response?.data?.message || "Failed to load recruiter data."
@@ -84,6 +115,7 @@ export default function RecruiterDashboard() {
       setLoading(false);
     }
   };
+
 
   const applyApplicationFilters = async (event) => {
     event.preventDefault();
@@ -107,11 +139,17 @@ export default function RecruiterDashboard() {
 
     const handleNew = (application) => {
       setApplications((prev) => [application, ...prev]);
+      loadApplicationSummary().catch(() => {
+        setError("A new application arrived, but the summary could not be refreshed.");
+      });
     };
 
     socket.on("new_application", handleNew);
 
-    return () => socket.off("new_application", handleNew);
+    return () => {
+      socket.off("new_application", handleNew);
+      summaryRequestId.current += 1;
+    };
   }, []);
 
   const handleFormChange = (e) => {
@@ -276,6 +314,11 @@ export default function RecruiterDashboard() {
           a._id === id ? { ...a, status } : a
         )
       );
+      try {
+        await loadApplicationSummary();
+      } catch {
+        setError("Application status updated, but the summary could not be refreshed.");
+      }
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -314,7 +357,7 @@ export default function RecruiterDashboard() {
           </article>
           <article className="metric-card">
             <span className="metric-icon metric-icon-blue"><Icon name="users" /></span>
-            <div><span className="metric-label">Applications received</span><strong>{applications.length}</strong></div>
+            <div><span className="metric-label">Applications received</span><strong>{applicationSummary.totalApplications}</strong></div>
           </article>
           <article className="metric-card">
             <span className="metric-icon metric-icon-amber"><Icon name="clock" /></span>
@@ -488,14 +531,14 @@ export default function RecruiterDashboard() {
       {!loading && !error && <section className="status-overview" aria-labelledby="status-overview-title">
         <div className="section-heading-compact">
           <div><span className="eyebrow">LIVE APPLICATIONS</span><h3 id="status-overview-title">Status overview</h3></div>
-          <span className="muted">{applications.length} total</span>
+          <span className="muted">{applicationSummary.totalApplications} total</span>
         </div>
-        {applications.length === 0 ? (
+        {applicationSummary.totalApplications === 0 ? (
           <p className="chart-empty">Status details will appear when students apply to your postings.</p>
         ) : (
           <div className="status-bars">
             {STATUS_FILTER_OPTIONS.map((status) => {
-              const count = applications.filter((application) => application.status === status).length;
+              const count = applicationCounts[status] || 0;
               return (
                 <div className="status-bar-row" key={status}>
                   <span className="status-bar-label">{status}</span>
@@ -578,4 +621,3 @@ export default function RecruiterDashboard() {
     </div>
   );
 }
-

@@ -16,6 +16,10 @@ const receivedRoute = router.stack.find(
   (layer) => layer.route?.path === "/received" && layer.route.methods.get
 );
 const receivedHandler = receivedRoute.route.stack.at(-1).handle;
+const receivedSummaryRoute = router.stack.find(
+  (layer) => layer.route?.path === "/received/summary" && layer.route.methods.get
+);
+const receivedSummaryHandler = receivedSummaryRoute.route.stack.at(-1).handle;
 const statusRoute = router.stack.find(
   (layer) => layer.route?.path === "/:id/status" && layer.route.methods.put
 );
@@ -83,6 +87,70 @@ test("received-application database errors do not expose internal details", asyn
   } finally {
     Application.find = originalFind;
     console.error = originalError;
+  }
+});
+
+test("received application summary counts every recruiter-owned application beyond the list limit", async () => {
+  const originalAggregate = Application.aggregate;
+  const recruiterId = "507f1f77bcf86cd799439012";
+  let pipeline;
+  Application.aggregate = async (stages) => {
+    pipeline = stages;
+    return [
+      { _id: "applied", count: 201 },
+      { _id: "interview", count: 24 },
+      { _id: "rejected", count: 13 },
+    ];
+  };
+
+  try {
+    const response = createResponse();
+    await receivedSummaryHandler({ user: { _id: recruiterId } }, response);
+
+    assert.deepEqual(pipeline, [
+      { $match: { recruiter: recruiterId } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+    assert.equal(pipeline.some((stage) => "$limit" in stage), false);
+    assert.deepEqual(response.body, {
+      totalApplications: 238,
+      statusBreakdown: [
+        { _id: "applied", count: 201 },
+        { _id: "interview", count: 24 },
+        { _id: "rejected", count: 13 },
+      ],
+    });
+  } finally {
+    Application.aggregate = originalAggregate;
+  }
+});
+
+test("received application summary is role-protected and scoped to the authenticated recruiter", async () => {
+  const authLayers = receivedSummaryRoute.route.stack;
+  const response = createResponse();
+  let nextCalled = false;
+  authLayers[1].handle(
+    { user: { _id: "507f1f77bcf86cd799439013", role: "student" } },
+    response,
+    () => { nextCalled = true; }
+  );
+
+  assert.equal(response.statusCode, 403);
+  assert.equal(nextCalled, false);
+
+  const originalAggregate = Application.aggregate;
+  let matchedRecruiter;
+  Application.aggregate = async ([matchStage]) => {
+    matchedRecruiter = matchStage.$match.recruiter;
+    return [];
+  };
+
+  try {
+    const recruiterId = "507f1f77bcf86cd799439012";
+    await receivedSummaryHandler({ user: { _id: recruiterId } }, createResponse());
+    assert.equal(matchedRecruiter, recruiterId);
+  } finally {
+    Application.aggregate = originalAggregate;
   }
 });
 
