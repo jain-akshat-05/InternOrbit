@@ -41,6 +41,32 @@ const loadConfig = (env = process.env) => {
     throw new Error("CLIENT_URL must be a public HTTPS URL in production or a valid HTTP(S) URL in development");
   }
 
+  const clientOrigins = [clientOrigin];
+  const previewClientUrlValue = env.CLIENT_PREVIEW_URL?.trim();
+  if (previewClientUrlValue) {
+    try {
+      const parsedPreviewUrl = new URL(previewClientUrlValue);
+      if (
+        !["http:", "https:"].includes(parsedPreviewUrl.protocol) ||
+        parsedPreviewUrl.username ||
+        parsedPreviewUrl.password ||
+        parsedPreviewUrl.pathname !== "/" ||
+        parsedPreviewUrl.search ||
+        parsedPreviewUrl.hash ||
+        (env.NODE_ENV === "production" &&
+          (parsedPreviewUrl.protocol !== "https:" ||
+            ["localhost", "127.0.0.1", "[::1]"].includes(parsedPreviewUrl.hostname)))
+      ) {
+        throw new Error();
+      }
+      if (!clientOrigins.includes(parsedPreviewUrl.origin)) {
+        clientOrigins.push(parsedPreviewUrl.origin);
+      }
+    } catch {
+      throw new Error("CLIENT_PREVIEW_URL must be an origin-only URL and use public HTTPS in production");
+    }
+  }
+
   const resumeMaxBytes = env.RESUME_MAX_BYTES === undefined ? 5 * 1024 * 1024 : Number(env.RESUME_MAX_BYTES);
   if (!Number.isInteger(resumeMaxBytes) || resumeMaxBytes < 1024 || resumeMaxBytes > 20 * 1024 * 1024) {
     throw new Error("RESUME_MAX_BYTES must be an integer between 1024 and 20971520");
@@ -112,6 +138,7 @@ const loadConfig = (env = process.env) => {
     jwtSecret,
     port,
     clientUrl: clientOrigin,
+    clientOrigins,
     resumeMaxBytes,
     resumeStorageProvider,
     resumeStorageDisabled,

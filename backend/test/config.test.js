@@ -26,6 +26,7 @@ test("normalizes the client origin and port", () => {
     jwtSecret: "test-secret-that-is-long-enough-for-validation",
     port: 5001,
     clientUrl: "http://localhost:5173",
+    clientOrigins: ["http://localhost:5173"],
     resumeMaxBytes: 5 * 1024 * 1024,
     resumeStorageProvider: "local",
     resumeStorageDisabled: false,
@@ -67,6 +68,32 @@ test("requires a deployed HTTPS client origin in production", () => {
       RESUME_S3_SECRET_ACCESS_KEY: "test-secret-key",
     }).clientUrl,
     "https://internorbit-mu.vercel.app"
+  );
+});
+
+test("allows only the configured production and exact preview CORS origins", () => {
+  const config = loadConfig({
+    ...validEnv(),
+    NODE_ENV: "production",
+    CLIENT_URL: "https://internorbit-mu.vercel.app",
+    CLIENT_PREVIEW_URL: "https://internorbit-o3s639wz4-jain-akshat-05s-projects.vercel.app",
+    RESUME_STORAGE_DISABLED: "true",
+  });
+  assert.deepEqual(config.clientOrigins, [
+    "https://internorbit-mu.vercel.app",
+    "https://internorbit-o3s639wz4-jain-akshat-05s-projects.vercel.app",
+  ]);
+  assert.equal(config.clientOrigins.includes("https://intern-orbit-flax.vercel.app"), false);
+  assert.equal(config.clientOrigins.includes("https://another-project.vercel.app"), false);
+  assert.throws(
+    () => loadConfig({
+      ...validEnv(),
+      NODE_ENV: "production",
+      CLIENT_URL: "https://internorbit-mu.vercel.app",
+      CLIENT_PREVIEW_URL: "https://internorbit-o3s639wz4-jain-akshat-05s-projects.vercel.app/path",
+      RESUME_STORAGE_DISABLED: "true",
+    }),
+    /CLIENT_PREVIEW_URL must be an origin-only URL/
   );
 });
 

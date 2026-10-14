@@ -18,12 +18,12 @@ const roundRoutes = require("./routes/roundRoutes");
 const resumeStore = createResumeStore(config);
 
 const app = express();
-app.use(cors({ origin: config.clientUrl }));
+app.use(cors({ origin: config.clientOrigins }));
 app.use(express.json());
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: config.clientUrl },
+  cors: { origin: config.clientOrigins },
 });
 
 io.use(createSocketAuth(config.jwtSecret));

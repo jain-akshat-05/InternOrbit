@@ -90,7 +90,7 @@ VITE_API_URL=https://internorbit-backend.onrender.com/api
 VITE_SOCKET_URL=https://internorbit-backend.onrender.com
 ```
 
-Set the Render backend `CLIENT_URL` to `https://internorbit-mu.vercel.app` and ensure `NODE_ENV=production`. Choose one resume mode in Render: configure the S3 variables above, or set `RESUME_STORAGE_DISABLED=true` temporarily. No storage credentials belong in Vercel. Keep database and JWT credentials exclusively in the backend environment, never in `VITE_` variables. Production frontend builds validate both Vite URLs; backend startup requires a public HTTPS `CLIENT_URL` and either S3 storage or the explicit disabled mode.
+Set the Render backend `CLIENT_URL` to `https://internorbit-mu.vercel.app` and ensure `NODE_ENV=production`. For the explicitly approved preview deployment only, optionally set `CLIENT_PREVIEW_URL=https://internorbit-o3s639wz4-jain-akshat-05s-projects.vercel.app`; both Express and Socket.IO use these exact origins, with no wildcard. Choose one resume mode in Render: configure the S3 variables above, or set `RESUME_STORAGE_DISABLED=true` temporarily. No storage credentials belong in Vercel. Keep database and JWT credentials exclusively in the backend environment, never in `VITE_` variables. Production frontend builds validate both Vite URLs; backend startup requires a public HTTPS `CLIENT_URL` and either S3 storage or the explicit disabled mode.
 
 ## API
 
