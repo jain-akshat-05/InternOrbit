@@ -1,12 +1,12 @@
 const crypto = require("node:crypto");
-const fs = require("node:fs/promises");
 const express = require("express");
 const Application = require("../models/Application");
 const Resume = require("../models/Resume");
 const User = require("../models/User");
 const { protect, authorize } = require("../middleware/auth");
 const { sendApiError, isValidObjectId } = require("../utils/apiErrors");
-const { getResumePath, safeOriginalName } = require("../utils/resumeStorage");
+const { safeOriginalName } = require("../utils/resumeStorage");
+const { createResumeStore } = require("../utils/resumeStore");
 
 const PROFILE_FIELDS = [
   "phone",
@@ -52,7 +52,27 @@ const calculateCompletion = (user) => {
   return Math.round((required.filter(Boolean).length / required.length) * 100);
 };
 
-const createProfileRoutes = (config) => {
+const sendResume = async (res, resume, resumeStore) => {
+  const contents = await resumeStore.read(resume.storageKey);
+  res
+    .type("application/pdf")
+    .set("X-Content-Type-Options", "nosniff")
+    .attachment(resume.originalName)
+    .send(contents);
+};
+
+const rejectWhenResumeStorageDisabled = (config, res) => {
+  if (!config.resumeStorageDisabled) return false;
+  res.status(503).json({ message: "Resume storage is temporarily disabled" });
+  return true;
+};
+
+const resumeStorageGate = (config) => (req, res, next) => {
+  if (rejectWhenResumeStorageDisabled(config, res)) return;
+  next();
+};
+
+const createProfileRoutes = (config, resumeStore = createResumeStore(config)) => {
   const router = express.Router();
   const parsePdf = express.raw({ type: "application/pdf", limit: config.resumeMaxBytes });
 
@@ -137,10 +157,11 @@ const createProfileRoutes = (config) => {
     }
   });
 
-  router.put("/me/resume", protect, authorize("student"), parsePdf, async (req, res) => {
-    let storagePath;
+  router.put("/me/resume", protect, authorize("student"), resumeStorageGate(config), parsePdf, async (req, res) => {
+    if (rejectWhenResumeStorageDisabled(config, res)) return;
     let createdResume;
     let previousResumeId;
+    let storageKey;
     try {
       if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
         return res.status(400).json({ message: "Upload a PDF resume" });
@@ -156,10 +177,9 @@ const createProfileRoutes = (config) => {
       const user = await User.findById(req.user._id);
       if (!user) return res.status(404).json({ message: "User not found" });
       previousResumeId = user.currentResume;
-      const storageKey = `${crypto.randomUUID()}.pdf`;
-      storagePath = getResumePath(config.resumeStorageDir, storageKey);
-      await fs.mkdir(config.resumeStorageDir, { recursive: true, mode: 0o700 });
-      await fs.writeFile(storagePath, req.body, { flag: "wx", mode: 0o600 });
+      storageKey = `${crypto.randomUUID()}.pdf`;
+      const sha256 = crypto.createHash("sha256").update(req.body).digest("hex");
+      await resumeStore.put(storageKey, req.body, sha256);
 
       let originalName = req.get("x-file-name");
       try {
@@ -174,7 +194,7 @@ const createProfileRoutes = (config) => {
         originalName: safeOriginalName(originalName),
         mimeType: "application/pdf",
         size: req.body.length,
-        sha256: crypto.createHash("sha256").update(req.body).digest("hex"),
+        sha256,
       });
       createdResume = resume;
       user.currentResume = resume._id;
@@ -184,9 +204,7 @@ const createProfileRoutes = (config) => {
         try {
           const previousResume = await Resume.findOne({ _id: previousResumeId, owner: user._id }).select("+storageKey");
           if (previousResume && !(await Application.exists({ resume: previousResume._id }))) {
-            await fs.unlink(getResumePath(config.resumeStorageDir, previousResume.storageKey)).catch((err) => {
-              if (err.code !== "ENOENT") throw err;
-            });
+            await resumeStore.delete(previousResume.storageKey);
             await previousResume.deleteOne();
           }
         } catch (cleanupError) {
@@ -201,26 +219,27 @@ const createProfileRoutes = (config) => {
         createdAt: resume.createdAt,
       });
     } catch (err) {
-      if (storagePath) await fs.unlink(storagePath).catch(() => {});
+      if (storageKey) await resumeStore.delete(storageKey).catch(() => {});
       if (createdResume) await createdResume.deleteOne().catch(() => {});
       return sendApiError(res, err);
     }
   });
 
   router.get("/me/resume", protect, authorize("student"), async (req, res) => {
+    if (rejectWhenResumeStorageDisabled(config, res)) return;
     try {
       const user = await User.findById(req.user._id).select("currentResume");
       if (!user?.currentResume) return res.status(404).json({ message: "No current resume" });
       const resume = await Resume.findOne({ _id: user.currentResume, owner: req.user._id }).select("+storageKey");
       if (!resume) return res.status(404).json({ message: "Resume not found" });
-      const filePath = getResumePath(config.resumeStorageDir, resume.storageKey);
-      res.type("application/pdf").set("X-Content-Type-Options", "nosniff").download(filePath, resume.originalName);
+      await sendResume(res, resume, resumeStore);
     } catch (err) {
       return sendApiError(res, err);
     }
   });
 
   router.delete("/me/resume", protect, authorize("student"), async (req, res) => {
+    if (rejectWhenResumeStorageDisabled(config, res)) return;
     try {
       const user = await User.findById(req.user._id);
       if (!user?.currentResume) return res.status(404).json({ message: "No current resume" });
@@ -229,8 +248,7 @@ const createProfileRoutes = (config) => {
       if (await Application.exists({ resume: resume._id })) {
         return res.status(409).json({ message: "This resume is attached to application history and cannot be deleted" });
       }
-      const filePath = getResumePath(config.resumeStorageDir, resume.storageKey);
-      await fs.unlink(filePath).catch((err) => { if (err.code !== "ENOENT") throw err; });
+      await resumeStore.delete(resume.storageKey);
       await resume.deleteOne();
       user.currentResume = null;
       await user.save();
@@ -241,12 +259,12 @@ const createProfileRoutes = (config) => {
   });
 
   router.get("/me/resumes/:resumeId/download", protect, authorize("student"), async (req, res) => {
+    if (rejectWhenResumeStorageDisabled(config, res)) return;
     try {
       if (!isValidObjectId(req.params.resumeId)) return res.status(400).json({ message: "Invalid resume ID" });
       const resume = await Resume.findOne({ _id: req.params.resumeId, owner: req.user._id }).select("+storageKey");
       if (!resume) return res.status(404).json({ message: "Resume not found" });
-      const filePath = getResumePath(config.resumeStorageDir, resume.storageKey);
-      res.type("application/pdf").set("X-Content-Type-Options", "nosniff").download(filePath, resume.originalName);
+      await sendResume(res, resume, resumeStore);
     } catch (err) {
       return sendApiError(res, err);
     }

@@ -71,6 +71,26 @@ test("students cannot apply to archived internships", async () => {
   }
 });
 
+test("new applications return 503 in resume-disabled mode before creating records", async () => {
+  const disabledRouter = createApplicationRoutes({ resumeStorageDisabled: true, resumeStorageProvider: "disabled" });
+  const disabledRoute = disabledRouter.stack.filter(
+    (layer) => layer.route?.path === "/" && layer.route.methods.post
+  ).at(-1);
+  const disabledHandler = disabledRoute.route.stack.at(-1).handle;
+  const originalCreate = Application.create;
+  let created = false;
+  Application.create = async () => { created = true; };
+  try {
+    const response = createResponse();
+    await disabledHandler({ body: {}, user: { _id: "507f1f77bcf86cd799439012" } }, response);
+    assert.equal(response.statusCode, 503);
+    assert.deepEqual(response.body, { message: "Applications are temporarily unavailable while resume storage is disabled" });
+    assert.equal(created, false);
+  } finally {
+    Application.create = originalCreate;
+  }
+});
+
 test("received-application database errors do not expose internal details", async () => {
   const originalFind = Application.find;
   const originalError = console.error;

@@ -27,6 +27,9 @@ test("normalizes the client origin and port", () => {
     port: 5001,
     clientUrl: "http://localhost:5173",
     resumeMaxBytes: 5 * 1024 * 1024,
+    resumeStorageProvider: "local",
+    resumeStorageDisabled: false,
+    resumeS3: null,
     resumeStorageDir: require("node:path").resolve(__dirname, "..", "storage", "resumes"),
   });
 });
@@ -56,9 +59,47 @@ test("requires a deployed HTTPS client origin in production", () => {
     loadConfig({
       ...validEnv(),
       NODE_ENV: "production",
-      CLIENT_URL: "https://intern-orbit-flax.vercel.app",
+      CLIENT_URL: "https://internorbit-mu.vercel.app",
+      RESUME_STORAGE_PROVIDER: "s3",
+      RESUME_S3_BUCKET: "test-resumes",
+      RESUME_S3_REGION: "us-east-1",
+      RESUME_S3_ACCESS_KEY_ID: "test-access-key",
+      RESUME_S3_SECRET_ACCESS_KEY: "test-secret-key",
     }).clientUrl,
-    "https://intern-orbit-flax.vercel.app"
+    "https://internorbit-mu.vercel.app"
+  );
+});
+
+test("requires configured S3 storage for production", () => {
+  const productionEnv = { ...validEnv(), NODE_ENV: "production", CLIENT_URL: "https://internorbit-mu.vercel.app" };
+  assert.throws(() => loadConfig(productionEnv), /RESUME_STORAGE_PROVIDER must be "s3"/);
+  assert.throws(() => loadConfig({ ...productionEnv, RESUME_STORAGE_PROVIDER: "s3" }), /Missing required S3 resume storage variables/);
+  const configured = loadConfig({
+    ...productionEnv,
+    RESUME_STORAGE_PROVIDER: "s3",
+    RESUME_S3_BUCKET: "test-resumes",
+    RESUME_S3_REGION: "us-east-1",
+    RESUME_S3_ACCESS_KEY_ID: "test-access-key",
+    RESUME_S3_SECRET_ACCESS_KEY: "test-secret-key",
+  });
+  assert.equal(configured.resumeStorageProvider, "s3");
+  assert.equal(configured.resumeS3.bucket, "test-resumes");
+  assert.equal(configured.resumeS3.forcePathStyle, false);
+});
+
+test("permits explicit resume-disabled production mode without S3 credentials", () => {
+  const config = loadConfig({
+    ...validEnv(),
+    NODE_ENV: "production",
+    CLIENT_URL: "https://internorbit-mu.vercel.app",
+    RESUME_STORAGE_DISABLED: "true",
+  });
+  assert.equal(config.resumeStorageDisabled, true);
+  assert.equal(config.resumeStorageProvider, "disabled");
+  assert.equal(config.resumeS3, null);
+  assert.throws(
+    () => loadConfig({ ...validEnv(), NODE_ENV: "production", CLIENT_URL: "https://internorbit-mu.vercel.app", RESUME_STORAGE_DISABLED: "maybe" }),
+    /RESUME_STORAGE_DISABLED must be true or false/
   );
 });
 

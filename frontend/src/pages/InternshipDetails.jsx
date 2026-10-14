@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
 import Icon from "../components/Icon";
+import ResumeUploader from "../components/ResumeUploader";
 import { useAuth } from "../context/AuthContext";
 
 export default function InternshipDetails() {
@@ -15,6 +16,7 @@ export default function InternshipDetails() {
   const [resumeId, setResumeId] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function InternshipDetails() {
     event.preventDefault();
     setError("");
     if (!resumeId) {
-      setError("Upload a PDF resume in your profile before applying.");
+      setError("Upload a PDF resume before applying.");
       return;
     }
 
@@ -102,20 +104,27 @@ export default function InternshipDetails() {
               <h2>Apply for this internship</h2>
               {error && <p className="error" role="alert">{error}</p>}
               <form className="application-form" onSubmit={submitApplication}>
-                {profile?.currentResume ? (
-                  <label>Resume
+                {profile?.currentResume && (
+                  <label>Resume to submit
                     <select aria-label="Resume to submit" value={resumeId} onChange={(event) => setResumeId(event.target.value)} required>
-                      <option value={profile.currentResume._id}>{profile.currentResume.originalName} · PDF</option>
+                      <option value={profile.currentResume._id}>{profile.currentResume.originalName} - PDF</option>
                     </select>
                   </label>
-                ) : (
-                  <p className="info">A resume is required. <Link to="/profile">Upload one in your profile</Link>.</p>
                 )}
+                {!profile?.currentResume && <p className="info">A PDF resume is required. Choose and upload it here or from <Link to="/profile">My Profile</Link>.</p>}
+                <ResumeUploader
+                  currentResume={profile?.currentResume}
+                  onUploadingChange={setResumeUploading}
+                  onUploaded={(resume) => {
+                    setProfile((current) => current ? { ...current, currentResume: resume } : current);
+                    setResumeId(resume._id);
+                  }}
+                />
                 <label>Cover letter <textarea aria-label="Cover letter" maxLength={5000} value={coverLetter} onChange={(event) => setCoverLetter(event.target.value)} placeholder="Tell the recruiter why this opportunity fits your goals." /></label>
                 {(internship.applicationQuestions || []).map((question) => (
                   <label key={question}>{question}<textarea aria-label={question} maxLength={3000} required value={answers[question] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [question]: event.target.value }))} /></label>
                 ))}
-                <button type="submit" disabled={submitting || !resumeId}>{submitting ? "Submitting..." : "Submit application"}</button>
+                <button type="submit" disabled={submitting || resumeUploading || !resumeId}>{resumeUploading ? "Uploading resume..." : submitting ? "Submitting..." : "Submit application"}</button>
               </form>
             </section>
           )}

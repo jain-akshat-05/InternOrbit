@@ -6,7 +6,7 @@ const RoundAssignment = require("../models/RoundAssignment");
 const { protect, authorize } = require("../middleware/auth");
 const { isValidObjectId, sendApiError } = require("../utils/apiErrors");
 const { createNotification } = require("../utils/notifications");
-const { getResumePath } = require("../utils/resumeStorage");
+const { createResumeStore } = require("../utils/resumeStore");
 
 const router = express.Router();
 const APPLICATION_TRANSITIONS = {
@@ -19,10 +19,13 @@ const APPLICATION_TRANSITIONS = {
   withdrawn: [],
 };
 
-const createApplicationRoutes = (config) => {
+const createApplicationRoutes = (config, resumeStore = createResumeStore(config)) => {
   // @route POST /api/applications  (student applies to an internship)
 router.post("/", protect, authorize("student"), async (req, res) => {
   try {
+    if (config.resumeStorageDisabled) {
+      return res.status(503).json({ message: "Applications are temporarily unavailable while resume storage is disabled" });
+    }
     const { internshipId, coverNote, coverLetter, resumeId, answers = [] } = req.body || {};
     if (!isValidObjectId(internshipId)) {
       return res.status(400).json({ message: "Invalid internship ID" });
@@ -262,11 +265,18 @@ router.get("/:id/resume", protect, async (req, res) => {
     if (!isStudentOwner && !isRecruiterOwner && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to access this resume" });
     }
+    if (config.resumeStorageDisabled) {
+      return res.status(503).json({ message: "Resume storage is temporarily disabled" });
+    }
     if (!application.resume) return res.status(404).json({ message: "Application has no attached resume" });
     const resume = await Resume.findById(application.resume).select("+storageKey");
     if (!resume) return res.status(404).json({ message: "Resume not found" });
-    const filePath = getResumePath(config.resumeStorageDir, resume.storageKey);
-    res.type("application/pdf").set("X-Content-Type-Options", "nosniff").download(filePath, resume.originalName);
+    const contents = await resumeStore.read(resume.storageKey);
+    res
+      .type("application/pdf")
+      .set("X-Content-Type-Options", "nosniff")
+      .attachment(resume.originalName)
+      .send(contents);
   } catch (err) {
     return sendApiError(res, err);
   }

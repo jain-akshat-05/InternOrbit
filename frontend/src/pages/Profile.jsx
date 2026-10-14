@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ResumeUploader from "../components/ResumeUploader";
 import api from "../api/axios";
 import Icon from "../components/Icon";
 import { useAuth } from "../context/AuthContext";
@@ -25,7 +26,6 @@ export default function Profile() {
   const [skills, setSkills] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [resumePreviewUrl, setResumePreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -88,33 +88,6 @@ export default function Profile() {
     setStudentProfile((current) => ({ ...current, [field]: value }));
   };
 
-  const handleResumeUpload = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".pdf") || (file.type && file.type !== "application/pdf")) {
-      setError("Choose a PDF resume.");
-      return;
-    }
-
-    setUploading(true);
-    setError("");
-    setSuccess("");
-    try {
-      await api.put("/profile/me/resume", file, {
-        headers: {
-          "Content-Type": "application/pdf",
-          "X-File-Name": encodeURIComponent(file.name),
-        },
-      });
-      setSuccess("Resume uploaded and set as your current resume.");
-      await loadProfile();
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not upload this resume.");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const downloadResume = async () => {
     setError("");
@@ -219,11 +192,13 @@ export default function Profile() {
             </div>
           ) : <p className="muted">No resume uploaded. Upload a PDF to attach it to internship applications.</p>}
           {resumePreviewUrl && <div className="resume-preview"><div><strong>Resume preview</strong><button type="button" className="button-quiet" onClick={() => setResumePreviewUrl("")}>Close preview</button></div><iframe title="Current resume PDF preview" src={resumePreviewUrl} /></div>}
-          <label className="resume-upload">
-            <Icon name="file" size={18} />
-            <span>{uploading ? "Uploading..." : profile.currentResume ? "Replace resume" : "Choose PDF resume"}</span>
-            <input type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={handleResumeUpload} />
-          </label>
+          <ResumeUploader
+            currentResume={profile.currentResume}
+            onUploaded={async () => {
+              setSuccess("Resume uploaded and set as your current resume.");
+              await loadProfile();
+            }}
+          />
           <p className="muted">PDF only. File size is validated by the server. Replacing a resume does not alter copies attached to existing applications.</p>
         </section>
       )}

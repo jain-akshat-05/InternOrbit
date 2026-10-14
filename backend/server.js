@@ -6,6 +6,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 const createSocketAuth = require("./middleware/socketAuth");
+const { createResumeStore } = require("./utils/resumeStore");
 
 const authRoutes = require("./routes/authRoutes");
 const internshipRoutes = require("./routes/internshipRoutes");
@@ -14,6 +15,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const createProfileRoutes = require("./routes/profileRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const roundRoutes = require("./routes/roundRoutes");
+const resumeStore = createResumeStore(config);
 
 const app = express();
 app.use(cors({ origin: config.clientUrl }));
@@ -35,11 +37,11 @@ app.set("io", io);
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
-app.use("/api/profile", createProfileRoutes(config));
+app.use("/api/profile", createProfileRoutes(config, resumeStore));
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/rounds", roundRoutes);
 app.use("/api/internships", internshipRoutes);
-app.use("/api/applications", createApplicationRoutes(config));
+app.use("/api/applications", createApplicationRoutes(config, resumeStore));
 app.use("/api/admin", adminRoutes);
 
 // basic error handler

@@ -1022,33 +1022,36 @@ textarea {
   font-size: 11px;
 }
 
-.resume-upload {
-  display: inline-flex;
-  min-height: 42px;
-  align-items: center;
+.resume-uploader {
+  display: grid;
+  justify-items: start;
   gap: 9px;
-  margin: 5px 0 10px;
-  padding: 9px 13px;
+  margin: 8px 0 10px;
+  padding: 14px;
   border: 1px dashed #99b9a5;
   border-radius: var(--radius-control);
   background: var(--brand-soft);
+}
+
+.resume-uploader label {
   color: var(--brand-hover);
   font-size: 13px;
   font-weight: 680;
+}
+
+.resume-uploader input[type="file"] {
+  display: block;
+  max-width: 100%;
+  color: var(--ink);
   cursor: pointer;
 }
 
-.resume-upload input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  clip-path: inset(50%);
+.resume-uploader button {
+  min-height: 38px;
+  padding: 8px 13px;
 }
 
-.resume-upload:focus-within {
+.resume-uploader:focus-within {
   outline: 3px solid #86b9a3;
   outline-offset: 3px;
 }

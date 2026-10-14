@@ -23,7 +23,7 @@ Admin user-management is not implemented. Admin accounts must be provisioned out
 - Backend: Node.js, Express 4, Mongoose 8, JWT, bcryptjs, and Socket.IO.
 - Database: MongoDB.
 
-The React app calls the Express API through Axios. The request interceptor adds the bearer token stored for the current user. Express verifies tokens and loads the current user from MongoDB before role checks. Mongoose schemas define users, internships, applications, resumes, hiring rounds, round assignments, and notifications; a unique `(internship, student)` index prevents duplicate applications. Resume bytes are stored under random filenames outside public static directories; MongoDB stores ownership and metadata. Socket.IO derives private rooms from verified JWT identities.
+The React app calls the Express API through Axios. The request interceptor adds the bearer token stored for the current user. Express verifies tokens and loads the current user from MongoDB before role checks. Mongoose schemas define users, internships, applications, resumes, hiring rounds, round assignments, and notifications; a unique `(internship, student)` index prevents duplicate applications. Resume bytes use random keys in private storage (local during development, S3-compatible object storage in production); MongoDB stores ownership and metadata. Socket.IO derives private rooms from verified JWT identities.
 
 ```text
 backend/
@@ -60,13 +60,16 @@ JWT_SECRET=replace-with-a-random-secret-of-at-least-32-characters
 PORT=5000
 CLIENT_URL=http://localhost:5173
 RESUME_MAX_BYTES=5242880
+RESUME_STORAGE_PROVIDER=local
+# Temporary production mode only; when true, resume operations and applications are disabled
+# RESUME_STORAGE_DISABLED=true
 # Optional; defaults to backend/storage/resumes
 # RESUME_STORAGE_DIR=D:/internorbit-private/resumes
 ```
 
 Run the backend in development mode with `npm run dev` or start it with `npm start` from `backend/`. It validates required configuration and connects to MongoDB before opening the HTTP port. `CLIENT_URL` is the one allowed browser origin; if omitted, the development default is `http://localhost:5173`.
 
-Resume uploads are PDF-only and default to a 5 MiB maximum. Files are stored outside public static directories. For production or multiple backend instances, configure a durable private volume or replace the local storage adapter with private object storage; keep downloads behind authenticated routes.
+Resume uploads are PDF-only and default to a 5 MiB maximum. Development uses private local storage. Production normally requires `NODE_ENV=production`, `RESUME_STORAGE_PROVIDER=s3`, and a private S3-compatible bucket; uploads and downloads remain behind authenticated routes. Set `RESUME_S3_BUCKET`, `RESUME_S3_REGION`, `RESUME_S3_ACCESS_KEY_ID`, and `RESUME_S3_SECRET_ACCESS_KEY` in Render. For an S3-compatible service with a custom endpoint, also set `RESUME_S3_ENDPOINT` (HTTPS in production) and, if needed, `RESUME_S3_FORCE_PATH_STYLE=true`. Grant the server identity only bucket object read/write/delete access, and keep the bucket private. As a temporary production mode without object storage, set `RESUME_STORAGE_DISABLED=true`; resume upload/download/delete and new applications return HTTP 503, while other authenticated portal features remain available. Do not select local storage in production.
 
 In a second terminal, install and run the frontend:
 
@@ -87,7 +90,7 @@ VITE_API_URL=https://internorbit-backend.onrender.com/api
 VITE_SOCKET_URL=https://internorbit-backend.onrender.com
 ```
 
-Set the Render backend environment variable `CLIENT_URL` to `https://intern-orbit-flax.vercel.app` and ensure `NODE_ENV=production`. Keep database and JWT credentials exclusively in the backend environment; never use secrets as `VITE_` variables. Production frontend builds fail when either Vite URL is missing or malformed, and production backend startup requires a public HTTPS `CLIENT_URL`.
+Set the Render backend `CLIENT_URL` to `https://internorbit-mu.vercel.app` and ensure `NODE_ENV=production`. Choose one resume mode in Render: configure the S3 variables above, or set `RESUME_STORAGE_DISABLED=true` temporarily. No storage credentials belong in Vercel. Keep database and JWT credentials exclusively in the backend environment, never in `VITE_` variables. Production frontend builds validate both Vite URLs; backend startup requires a public HTTPS `CLIENT_URL` and either S3 storage or the explicit disabled mode.
 
 ## API
 
@@ -145,7 +148,7 @@ From `backend/`, run `npm test` for the Node built-in test suite. From `frontend
 ## Known Limitations
 
 - MongoDB-backed routes and real-time delivery require a reachable MongoDB instance; full live-database integration tests have not been run.
-- Local resume storage is for development. Production requires a durable private volume or private object-storage adapter and backups.
+- Local resume storage is for development. Production uses private S3-compatible storage or the explicit temporary disabled mode; keep production bucket backups and access policies in place.
 - Existing databases should be reviewed for legacy profile fields and indexes before deployment; no automated production migration runner is included.
 - There is no pagination, password reset, email verification, or admin account-management workflow.
 - No online examination engine, automated grading, or video interview integration is included.

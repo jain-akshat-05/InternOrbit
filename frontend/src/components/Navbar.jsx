@@ -64,7 +64,7 @@ export default function Navbar() {
               )}
               {(user?.role === "student" || user?.role === "recruiter") && (
                 <NavLink to="/profile" className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`} onClick={closeMenu}>
-                  {user.role === "recruiter" ? "Company profile" : "Profile"}
+                  {user.role === "recruiter" ? "Company profile" : "My Profile"}
                 </NavLink>
               )}
               {(user?.role === "recruiter" || user?.role === "admin") && (

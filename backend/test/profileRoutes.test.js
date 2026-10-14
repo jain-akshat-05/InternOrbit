@@ -53,6 +53,53 @@ test("profile updates ignore role/email mass assignment and validate profile val
   }
 });
 
+test("resume upload delegates bytes to the configured durable store", async () => {
+  const router = createProfileRoutes({ resumeMaxBytes: 4096, resumeStorageProvider: "s3" }, {
+    async put(key, contents, sha256) { stored = { key, contents, sha256 }; },
+    async read() { throw new Error("not used"); },
+    async delete() {},
+  });
+  const handler = getHandler(router, "put", "/me/resume");
+  const originalFindById = User.findById;
+  const originalResumeCreate = Resume.create;
+  const pdf = Buffer.from("%PDF-1.7\nprivate resume\n%%EOF");
+  let stored;
+  const user = { _id: userId, currentResume: null, async save() {} };
+  User.findById = async () => user;
+  Resume.create = async (data) => ({ ...data, _id: resumeId, createdAt: new Date(), async deleteOne() {} });
+  try {
+    const response = createResponse();
+    await handler({ body: pdf, get: () => encodeURIComponent("resume.pdf"), user: { _id: userId } }, response);
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(stored.contents, pdf);
+    assert.match(stored.key, /^[a-f0-9-]{36}\.pdf$/i);
+    assert.equal(stored.sha256.length, 64);
+    assert.equal(user.currentResume, resumeId);
+  } finally {
+    User.findById = originalFindById;
+    Resume.create = originalResumeCreate;
+  }
+});
+
+test("resume endpoints return 503 in disabled mode after their auth middleware", async () => {
+  const router = createProfileRoutes({ resumeStorageDisabled: true, resumeStorageProvider: "disabled", resumeMaxBytes: 4096 });
+  const routes = [
+    ["put", "/me/resume"],
+    ["get", "/me/resume"],
+    ["delete", "/me/resume"],
+    ["get", "/me/resumes/:resumeId/download"],
+  ];
+  for (const [method, routePath] of routes) {
+    const route = router.stack.find((layer) => layer.route?.path === routePath && layer.route.methods[method]).route;
+    const handlers = route.stack.map((layer) => layer.handle);
+    assert.ok(handlers.length >= 3, `${method.toUpperCase()} ${routePath} retains auth/role middleware`);
+    const response = createResponse();
+    await handlers.at(-1)({ user: { _id: userId }, body: Buffer.from("ignored") }, response);
+    assert.equal(response.statusCode, 503, `${method.toUpperCase()} ${routePath}`);
+    assert.deepEqual(response.body, { message: "Resume storage is temporarily disabled" });
+  }
+});
+
 test("resume upload rejects non-PDF content and stores valid PDFs privately", async () => {
   const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), "internorbit-resumes-"));
   const router = createProfileRoutes({ resumeMaxBytes: 4096, resumeStorageDir: storageDir });
