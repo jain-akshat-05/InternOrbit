@@ -18,16 +18,27 @@ const loadConfig = (env = process.env) => {
     throw new Error("PORT must be an integer between 1 and 65535");
   }
 
-  const clientUrl = (env.CLIENT_URL || "http://localhost:5173").trim();
+  const clientUrlValue = env.CLIENT_URL?.trim();
+  if (env.NODE_ENV === "production" && !clientUrlValue) {
+    throw new Error("CLIENT_URL is required in production");
+  }
+  const clientUrl = clientUrlValue || "http://localhost:5173";
   let clientOrigin;
   try {
     const parsedUrl = new URL(clientUrl);
     if (!["http:", "https:"].includes(parsedUrl.protocol)) {
       throw new Error();
     }
+    if (
+      env.NODE_ENV === "production" &&
+      (parsedUrl.protocol !== "https:" ||
+        ["localhost", "127.0.0.1", "[::1]"].includes(parsedUrl.hostname))
+    ) {
+      throw new Error();
+    }
     clientOrigin = parsedUrl.origin;
   } catch {
-    throw new Error("CLIENT_URL must be a valid HTTP or HTTPS URL");
+    throw new Error("CLIENT_URL must be a public HTTPS URL in production or a valid HTTP(S) URL in development");
   }
 
   const resumeMaxBytes = env.RESUME_MAX_BYTES === undefined ? 5 * 1024 * 1024 : Number(env.RESUME_MAX_BYTES);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errors";
 import { useAuth } from "../context/AuthContext";
 
 export default function Register() {
@@ -19,7 +20,7 @@ export default function Register() {
       login(data);
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      setError(getApiErrorMessage(err, "Registration failed. Please try again."));
     } finally {
       setSubmitting(false);
     }

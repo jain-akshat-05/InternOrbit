@@ -60,8 +60,8 @@ const startServer = async () => {
     server.listen(config.port, () =>
       console.log(`InternOrbit backend running on port ${config.port}`)
     );
-  } catch {
-    console.error("Unable to connect to MongoDB; verify MONGO_URI and database availability.");
+  } catch (err) {
+    console.error("MongoDB connection failed", { name: err?.name || "Error" });
     process.exitCode = 1;
   }
 };

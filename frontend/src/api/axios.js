@@ -1,8 +1,16 @@
 import axios from "axios";
 import { clearStoredUser, readStoredUser } from "../authStorage";
 
+const apiBaseUrl =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://localhost:5000/api" : "");
+
+if (!apiBaseUrl) {
+  throw new Error("VITE_API_URL must be configured for production.");
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: apiBaseUrl,
 });
 
 let unauthorizedHandler = null;

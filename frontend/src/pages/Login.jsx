@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errors";
 import { useAuth } from "../context/AuthContext";
 
 const getSafeReturnPath = (from) => {
@@ -34,7 +35,7 @@ export default function Login() {
       login(data);
       navigate(getSafeReturnPath(location.state?.from), { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(getApiErrorMessage(err, "Login failed. Please try again."));
     } finally {
       setSubmitting(false);
     }

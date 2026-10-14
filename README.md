@@ -78,6 +78,17 @@ npm run dev
 
 The frontend defaults to `http://localhost:5000/api` for REST and `http://localhost:5000` for Socket.IO. Override these with `VITE_API_URL` and `VITE_SOCKET_URL` in the frontend environment when deploying.
 
+## Deployment
+
+Configure the Vercel project to use `frontend` as its Root Directory. The checked-in `frontend/vercel.json` uses `npm ci --include=dev`, `npm run build`, and `dist`; the explicit install command ensures Vite, which is a development dependency, is present during the build. Set these Vercel Production environment variables:
+
+```text
+VITE_API_URL=https://internorbit-backend.onrender.com/api
+VITE_SOCKET_URL=https://internorbit-backend.onrender.com
+```
+
+Set the Render backend environment variable `CLIENT_URL` to `https://intern-orbit-flax.vercel.app` and ensure `NODE_ENV=production`. Keep database and JWT credentials exclusively in the backend environment; never use secrets as `VITE_` variables. Production frontend builds fail when either Vite URL is missing or malformed, and production backend startup requires a public HTTPS `CLIENT_URL`.
+
 ## API
 
 Protected HTTP endpoints use `Authorization: Bearer <token>`.
@@ -167,4 +178,3 @@ Use these as code-grounded study notes; explain the flow in your own words and d
 Akshat Jain
 
 GitHub: https://github.com/jain-akshat-05
-

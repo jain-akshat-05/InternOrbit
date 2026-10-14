@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errors";
 import Icon from "../components/Icon";
 import { useAuth } from "../context/AuthContext";
 
@@ -44,10 +45,13 @@ export default function InternshipList() {
       };
       const { data } = await api.get("/internships", { params });
       if (currentRequestId !== requestId.current) return;
+      if (!Array.isArray(data)) {
+        throw new Error("The server returned an unexpected internship response.");
+      }
       setInternships(data);
     } catch (err) {
       if (currentRequestId !== requestId.current) return;
-      setError(err.response?.data?.message || "Failed to load internships.");
+      setError(getApiErrorMessage(err, "Failed to load internships. Please try again."));
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
